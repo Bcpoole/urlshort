@@ -2,10 +2,7 @@ package urlshort
 
 import (
 	"encoding/json"
-	"io"
-	"log"
 	"net/http"
-	"strings"
 
 	yaml "gopkg.in/yaml.v2"
 )
@@ -49,10 +46,7 @@ func YAMLHandler(yml []byte, fallback http.Handler) (http.HandlerFunc, error) {
 	if err != nil {
 		return nil, err
 	}
-	paths := make(map[string]string)
-	for _, m := range ymlPaths {
-		paths[m["path"]] = m["url"]
-	}
+	paths := buildRedirectMap(ymlPaths)
 
 	return func(w http.ResponseWriter, r *http.Request) {
 		path, ok := paths[r.URL.Path]
@@ -64,21 +58,15 @@ func YAMLHandler(yml []byte, fallback http.Handler) (http.HandlerFunc, error) {
 	}, nil
 }
 
-func JSONHandler(jsonStr string, fallback http.Handler) (http.HandlerFunc, error) {
-	type JSONPath struct {
-		Path, URL string
+// JSONHandler parses json []byte of url handler mappings an redirects base on those inputs.
+// Else falls back to provided Handler.
+func JSONHandler(data []byte, fallback http.Handler) (http.HandlerFunc, error) {
+	jsonPaths := []map[string]string{}
+	err := json.Unmarshal(data, &jsonPaths)
+	if err != nil {
+		return nil, err
 	}
-	dec := json.NewDecoder(strings.NewReader(jsonStr))
-	paths := make(map[string]string)
-	for {
-		var m JSONPath
-		if err := dec.Decode(&m); err == io.EOF {
-			break
-		} else if err != nil {
-			log.Fatal(err)
-		}
-		paths[m.Path] = m.URL
-	}
+	paths := buildRedirectMap(jsonPaths)
 
 	return func(w http.ResponseWriter, r *http.Request) {
 		path, ok := paths[r.URL.Path]
@@ -88,4 +76,12 @@ func JSONHandler(jsonStr string, fallback http.Handler) (http.HandlerFunc, error
 			fallback.ServeHTTP(w, r)
 		}
 	}, nil
+}
+
+func buildRedirectMap(data []map[string]string) map[string]string {
+	redirects := make(map[string]string)
+	for _, m := range data {
+		redirects[m["path"]] = m["url"]
+	}
+	return redirects
 }

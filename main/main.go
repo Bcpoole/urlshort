@@ -1,7 +1,9 @@
 package main
 
 import (
+	"flag"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 
 	urlshort "github.com/bcpoole/urlshort"
@@ -18,22 +20,20 @@ func main() {
 	mapHandler := urlshort.MapHandler(pathsToUrls, mux)
 
 	// Build the YAMLHandler using the mapHandler as the fallback
-	yaml := `
-- path: /urlshort
-  url: https://github.com/gophercises/urlshort
-- path: /urlshort-final
-  url: https://github.com/gophercises/urlshort/tree/solution
-`
-	yamlHandler, err := urlshort.YAMLHandler([]byte(yaml), mapHandler)
+	var yamlFile = flag.String("yamlfile", "", "Provide absolute path for yaml file with redirect urls.")
+	var jsonFile = flag.String("jsonfile", "", "Provide absolute path for json file with redirect urls.")
+	flag.Parse()
+	yaml, err := ioutil.ReadFile(*yamlFile)
+	if err != nil {
+		panic(err)
+	}
+	yamlHandler, err := urlshort.YAMLHandler(yaml, mapHandler)
 	if err != nil {
 		panic(err)
 	}
 
-	jsonPaths := `
-	{"path": "/urlshort-json", "url": "https://github.com/gophercises/urlshort"}
-	{"path": "/json-godoc", "url": "https://golang.org/pkg/encoding/json/"}
-`
-	jsonHandler, err := urlshort.JSONHandler(jsonPaths, yamlHandler)
+	jsonData, err := ioutil.ReadFile(*jsonFile)
+	jsonHandler, err := urlshort.JSONHandler(jsonData, yamlHandler)
 	if err != nil {
 		panic(err)
 	}
