@@ -6,7 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	urlshort "github.com/bcpoole/urlshort"
+	"github.com/bcpoole/urlshort"
 )
 
 func main() {
@@ -20,14 +20,21 @@ func main() {
 	mapHandler := urlshort.MapHandler(pathsToUrls, mux)
 
 	// Build the YAMLHandler using the mapHandler as the fallback
-	var yamlFile = flag.String("yamlfile", "", "Provide absolute path for yaml file with redirect urls.")
-	var jsonFile = flag.String("jsonfile", "", "Provide absolute path for json file with redirect urls.")
+	var yamlFile = flag.String("yamlfile", "urlmappings.yaml", "Provide absolute path for yaml file with redirect urls.")
+	var jsonFile = flag.String("jsonfile", "urlmappings.json", "Provide absolute path for json file with redirect urls.")
+	var boltFile = flag.String("boltfile", "bolt.db", "Provide absolute path for bolt db file with redirect urls.")
 	flag.Parse()
+
+	boltHandler, err := urlshort.BoltHandler(*boltFile, mapHandler)
+	if err != nil {
+		panic(err)
+	}
+
 	yaml, err := ioutil.ReadFile(*yamlFile)
 	if err != nil {
 		panic(err)
 	}
-	yamlHandler, err := urlshort.YAMLHandler(yaml, mapHandler)
+	yamlHandler, err := urlshort.YAMLHandler(yaml, boltHandler)
 	if err != nil {
 		panic(err)
 	}
